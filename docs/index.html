@@ -265,6 +265,9 @@
                     .then(data => {
                         allNews = data.news || [];
                         allTwitter = data.twitter || [];
+                        // Ensure date field exists, add default if missing
+                        allNews = allNews.map(item => ({ ...item, date: item.date || 'No date' }));
+                        allTwitter = allTwitter.map(item => ({ ...item, date: item.date || 'No date' }));
                         saveToLocalStorage();
                         populateTagsAndRender();
                     })
@@ -374,7 +377,7 @@
             document.getElementById('description').value = item.description;
             document.getElementById('source').value = item.source;
             document.getElementById('tags').value = item.tags ? item.tags.join(', ') : '';
-            document.getElementById('date').value = item.date || '';
+            document.getElementById('date').value = item.date && item.date !== 'No date' ? item.date : '';
             document.getElementById('editIndex').value = index;
             document.getElementById('editType').value = type;
         }
@@ -387,7 +390,7 @@
             const description = document.getElementById('description').value.trim();
             const source = document.getElementById('source').value.trim();
             const tags = document.getElementById('tags').value.trim().split(',').map(t => t.trim()).filter(t => t);
-            const date = document.getElementById('date').value.trim();
+            const date = document.getElementById('date').value.trim() || 'No date';
             const editIndex = document.getElementById('editIndex').value;
             const editType = document.getElementById('editType').value;
 

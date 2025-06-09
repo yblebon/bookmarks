@@ -122,6 +122,12 @@
             margin: 10px 0;
             line-height: 1.4;
         }
+        .preview img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 5px;
+            margin: 5px 0;
+        }
         .date {
             font-size: 12px;
             color: #777;
@@ -169,8 +175,8 @@
         <input type="text" id="title" placeholder="Enter title or username" />
         <label for="url">URL:</label>
         <input type="text" id="url" placeholder="Enter URL" />
-        <label for="description">Description:</label>
-        <textarea id="description" placeholder="Enter description"></textarea>
+        <label for="description">Description (fallback):</label>
+        <textarea id="description" placeholder="Enter fallback description"></textarea>
         <label for="source">Source:</label>
         <input type="text" id="source" placeholder="Enter source" />
         <label for="tags">Tags (comma-separated):</label>
@@ -210,6 +216,36 @@
         let allTwitter = [];
         let allTags = new Set();
 
+        // Fetch Open Graph data for a URL
+        async function fetchOpenGraphData(url) {
+            try {
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+                const response = await fetch(proxyUrl);
+                if (!response.ok) throw new Error('Failed to fetch URL');
+                const data = await response.json();
+                const html = data.contents;
+
+                // Parse HTML for Open Graph tags
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const metas = doc.getElementsByTagName('meta');
+                let ogData = { title: '', description: '', image: '' };
+
+                for (let meta of metas) {
+                    const property = meta.getAttribute('property');
+                    const content = meta.getAttribute('content');
+                    if (property === 'og:title') ogData.title = content;
+                    if (property === 'og:description') ogData.description = content;
+                    if (property === 'og:image') ogData.image = content;
+                }
+
+                return ogData;
+            } catch (error) {
+                console.error('Error fetching OG data for', url, error);
+                return { title: '', description: 'No preview available', image: '' };
+            }
+        }
+
         // Load data from local storage or fetch from GitHub
         function loadData() {
             const storedNews = localStorage.getItem('news');
@@ -247,7 +283,7 @@
         }
 
         // Populate tags and render cards
-        function populateTagsAndRender() {
+        async function populateTagsAndRender() {
             allTags.clear();
             [...allNews, ...allTwitter].forEach(item => {
                 if (item.tags && Array.isArray(item.tags)) {
@@ -264,11 +300,11 @@
                 tagFilter.appendChild(option);
             });
 
-            renderCards();
+            await renderCards();
         }
 
         // Render cards based on search and tag filter
-        function renderCards() {
+        async function renderCards() {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
             const selectedTag = document.getElementById('tagFilter').value;
             const newsContainer = document.getElementById('news-container');
@@ -277,15 +313,21 @@
             twitterContainer.innerHTML = '';
 
             // Render news cards
-            allNews.forEach((item, index) => {
+            for (let index = 0; index < allNews.length; index++) {
+                const item = allNews[index];
                 const matchesSearch = item.title.toLowerCase().includes(searchTerm);
                 const matchesTag = selectedTag === 'all' || (item.tags && item.tags.includes(selectedTag));
                 if (matchesSearch && matchesTag) {
+                    const ogData = await fetchOpenGraphData(item.url);
                     const card = document.createElement('div');
                     card.className = 'card';
                     card.innerHTML = `
                         <h3>${item.title}</h3>
-                        <div class="preview">${item.description}</div>
+                        <div class="preview">
+                            <strong>${ogData.title || item.title}</strong>
+                            ${ogData.image ? `<img src="${ogData.image}" alt="Preview Image" />` : ''}
+                            <p>${ogData.description || item.description || 'No preview available'}</p>
+                        </div>
                         <div class="tags">${item.tags ? item.tags.map(tag => `<span class="tag">${tag}</span>`).join('') : ''}</div>
                         <div class="date">${item.date || 'No date'}</div>
                         <a href="${item.url}" target="_blank" rel="noopener noreferrer">Read More</a>
@@ -294,18 +336,24 @@
                     `;
                     newsContainer.appendChild(card);
                 }
-            });
+            }
 
             // Render Twitter cards
-            allTwitter.forEach((item, index) => {
+            for (let index = 0; index < allTwitter.length; index++) {
+                const item = allTwitter[index];
                 const matchesSearch = item.title ? item.title.toLowerCase().includes(searchTerm) : item.username.toLowerCase().includes(searchTerm);
                 const matchesTag = selectedTag === 'all' || (item.tags && item.tags.includes(selectedTag));
                 if (matchesSearch && matchesTag) {
+                    const ogData = await fetchOpenGraphData(item.url);
                     const card = document.createElement('div');
                     card.className = 'card';
                     card.innerHTML = `
                         <h3>@${item.username}</h3>
-                        <div class="preview">${item.description}</div>
+                        <div class="preview">
+                            <strong>${ogData.title || item.username}</strong>
+                            ${ogData.image ? `<img src="${ogData.image}" alt="Preview Image" />` : ''}
+                            <p>${ogData.description || item.description || 'No preview available'}</p>
+                        </div>
                         <div class="tags">${item.tags ? item.tags.map(tag => `<span class="tag">${tag}</span>`).join('') : ''}</div>
                         <div class="date">${item.date || 'No date'}</div>
                         <a href="${item.url}" target="_blank" rel="noopener noreferrer">View Post</a>
@@ -314,7 +362,7 @@
                     `;
                     twitterContainer.appendChild(card);
                 }
-            });
+            }
         }
 
         // Edit a card

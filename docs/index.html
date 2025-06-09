@@ -72,6 +72,17 @@
             border: 1px solid #ccc;
             font-size: 16px;
         }
+        .controls button {
+            padding: 8px 16px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .controls button:hover {
+            background-color: #218838;
+        }
         .container {
             display: flex;
             flex-wrap: wrap;
@@ -110,6 +121,11 @@
             color: #666;
             margin: 10px 0;
             line-height: 1.4;
+        }
+        .date {
+            font-size: 12px;
+            color: #777;
+            margin: 10px 0;
         }
         .source {
             font-size: 12px;
@@ -159,6 +175,8 @@
         <input type="text" id="source" placeholder="Enter source" />
         <label for="tags">Tags (comma-separated):</label>
         <input type="text" id="tags" placeholder="e.g., tech,update" />
+        <label for="date">Date (YYYY-MM-DD):</label>
+        <input type="text" id="date" placeholder="e.g., 2025-06-09" />
         <button onclick="saveCard()">Save Card</button>
         <button onclick="clearForm()">Clear Form</button>
         <input type="hidden" id="editIndex" value="-1" />
@@ -171,6 +189,7 @@
             <select id="tagFilter">
                 <option value="all">All Tags</option>
             </select>
+            <button onclick="copyToClipboard()">Copy JSON to Clipboard</button>
         </div>
         
         <div class="news-section">
@@ -268,6 +287,7 @@
                         <h3>${item.title}</h3>
                         <div class="preview">${item.description}</div>
                         <div class="tags">${item.tags ? item.tags.map(tag => `<span class="tag">${tag}</span>`).join('') : ''}</div>
+                        <div class="date">${item.date || 'No date'}</div>
                         <a href="${item.url}" target="_blank" rel="noopener noreferrer">Read More</a>
                         <div class="source">Source: <a href="${item.url}" target="_blank" rel="noopener noreferrer">${item.source}</a></div>
                         <button onclick="editCard('news', ${index})">Edit</button>
@@ -287,6 +307,7 @@
                         <h3>@${item.username}</h3>
                         <div class="preview">${item.description}</div>
                         <div class="tags">${item.tags ? item.tags.map(tag => `<span class="tag">${tag}</span>`).join('') : ''}</div>
+                        <div class="date">${item.date || 'No date'}</div>
                         <a href="${item.url}" target="_blank" rel="noopener noreferrer">View Post</a>
                         <div class="source">Source: <a href="https://x.com" target="_blank" rel="noopener noreferrer">${item.source}</a></div>
                         <button onclick="editCard('twitter', ${index})">Edit</button>
@@ -305,6 +326,7 @@
             document.getElementById('description').value = item.description;
             document.getElementById('source').value = item.source;
             document.getElementById('tags').value = item.tags ? item.tags.join(', ') : '';
+            document.getElementById('date').value = item.date || '';
             document.getElementById('editIndex').value = index;
             document.getElementById('editType').value = type;
         }
@@ -317,17 +339,18 @@
             const description = document.getElementById('description').value.trim();
             const source = document.getElementById('source').value.trim();
             const tags = document.getElementById('tags').value.trim().split(',').map(t => t.trim()).filter(t => t);
+            const date = document.getElementById('date').value.trim();
             const editIndex = document.getElementById('editIndex').value;
             const editType = document.getElementById('editType').value;
 
             if (!title || !url || !description || !source) {
-                alert('Please fill in all fields');
+                alert('Please fill in title, URL, description, and source');
                 return;
             }
 
             const newItem = type === 'news' 
-                ? { title, url, description, source, tags }
-                : { username: title, url, description, source, tags };
+                ? { title, url, description, source, tags, date }
+                : { username: title, url, description, source, tags, date };
 
             if (editIndex === '-1') {
                 // Add new card
@@ -358,8 +381,26 @@
             document.getElementById('description').value = '';
             document.getElementById('source').value = '';
             document.getElementById('tags').value = '';
+            document.getElementById('date').value = '';
             document.getElementById('editIndex').value = '-1';
             document.getElementById('editType').value = '';
+        }
+
+        // Copy JSON to clipboard
+        function copyToClipboard() {
+            const jsonData = {
+                news: allNews,
+                twitter: allTwitter
+            };
+            const jsonString = JSON.stringify(jsonData, null, 2);
+            navigator.clipboard.writeText(jsonString)
+                .then(() => {
+                    alert('JSON data copied to clipboard!');
+                })
+                .catch(err => {
+                    console.error('Error copying to clipboard:', err);
+                    alert('Failed to copy JSON to clipboard');
+                });
         }
 
         // Initial load

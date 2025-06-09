@@ -1,1 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News & Twitter Links</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #333;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+        }
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            padding: 15px;
+            width: 250px;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: scale(1.05);
+        }
+        .card a {
+            text-decoration: none;
+            color: #007bff;
+            font-weight: bold;
+        }
+        .card a:hover {
+            color: #0056b3;
+        }
+        .preview {
+            font-size: 14px;
+            color: #666;
+            margin: 10px 0;
+            line-height: 1.4;
+        }
+        .source {
+            font-size: 12px;
+            color: #888;
+        }
+        .source a {
+            color: #888;
+            font-weight: normal;
+        }
+        .source a:hover {
+            color: #555;
+        }
+        .news-section, .twitter-section {
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>News & Twitter Links</h1>
+    
+    <div class="news-section">
+        <h2>News</h2>
+        <div id="news-container" class="container"></div>
+    </div>
+    
+    <div class="twitter-section">
+        <h2>Twitter Posts</h2>
+        <div id="twitter-container" class="container"></div>
+    </div>
 
+    <script>
+        // GitHub raw JSON file URL
+        const jsonUrl = 'https://raw.githubusercontent.com/yblebon/datasources/main/bookmarks.json';
+
+        // Fetch JSON data
+        fetch(jsonUrl)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to fetch JSON data');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Populate news cards
+                const newsContainer = document.getElementById('news-container');
+                data.news.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerHTML = `
+                        <h3>${item.title}</h3>
+                        <div class="preview">${item.description}</div>
+                        <a href="${item.url}" target="_blank" rel="noopener noreferrer">Read More</a>
+                        <div class="source">Source: <a href="${item.url}" target="_blank" rel="noopener noreferrer">${item.source}</a></div>
+                    `;
+                    newsContainer.appendChild(card);
+                });
+
+                // Populate Twitter cards
+                const twitterContainer = document.getElementById('twitter-container');
+                data.twitter.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerHTML = `
+                        <h3>@${item.username}</h3>
+                        <div class="preview">${item.description}</div>
+                        <a href="${item.url}" target="_blank" rel="noopener noreferrer">View Post</a>
+                        <div class="source">Source: <a href="https://x.com" target="_blank" rel="noopener noreferrer">${item.source}</a></div>
+                    `;
+                    twitterContainer.appendChild(card);
+                });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('news-container').innerHTML = '<p>Error loading news data</p>';
+                document.getElementById('twitter-container').innerHTML = '<p>Error loading Twitter data</p>';
+            });
+    </script>
+</body>
+</html>

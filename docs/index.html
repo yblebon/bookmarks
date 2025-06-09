@@ -11,28 +11,26 @@
             margin: 0 auto;
             padding: 20px;
             background-color: #f5f5f5;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
         }
-        h1, h2 {
+        h1 {
             text-align: center;
             color: #333;
+            width: 100%;
         }
-        .controls {
+        h2 {
             text-align: center;
-            margin: 20px 0;
-        }
-        .controls input, .controls select {
-            padding: 8px;
-            margin: 0 10px;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-            font-size: 16px;
+            color: #333;
         }
         .form-container {
             background-color: white;
             padding: 15px;
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            margin: 20px 0;
+            width: 300px;
+            flex-shrink: 0;
         }
         .form-container label {
             display: block;
@@ -45,6 +43,7 @@
             border-radius: 5px;
             border: 1px solid #ccc;
             font-size: 14px;
+            box-sizing: border-box;
         }
         .form-container button {
             margin: 10px 0;
@@ -57,6 +56,21 @@
         }
         .form-container button:hover {
             background-color: #0056b3;
+        }
+        .main-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .controls input, .controls select {
+            padding: 8px;
+            margin: 0 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 16px;
         }
         .container {
             display: flex;
@@ -128,13 +142,6 @@
 <body>
     <h1>News & Twitter Links</h1>
     
-    <div class="controls">
-        <input type="text" id="searchInput" placeholder="Search by title..." />
-        <select id="tagFilter">
-            <option value="all">All Tags</option>
-        </select>
-    </div>
-    
     <div class="form-container">
         <h3>Add/Edit Card</h3>
         <label for="cardType">Type:</label>
@@ -158,14 +165,23 @@
         <input type="hidden" id="editType" value="" />
     </div>
     
-    <div class="news-section">
-        <h2>News</h2>
-        <div id="news-container" class="container"></div>
-    </div>
-    
-    <div class="twitter-section">
-        <h2>Twitter Posts</h2>
-        <div id="twitter-container" class="container"></div>
+    <div class="main-content">
+        <div class="controls">
+            <input type="text" id="searchInput" placeholder="Search by title..." />
+            <select id="tagFilter">
+                <option value="all">All Tags</option>
+            </select>
+        </div>
+        
+        <div class="news-section">
+            <h2>News</h2>
+            <div id="news-container" class="container"></div>
+        </div>
+        
+        <div class="twitter-section">
+            <h2>Twitter Posts</h2>
+            <div id="twitter-container" class="container"></div>
+        </div>
     </div>
 
     <script>

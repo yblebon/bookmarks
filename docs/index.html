@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>News Page</title>
+    <title>Bookmarks</title>
     <style>
         body {
             font-family: monospace;
@@ -19,10 +19,6 @@
             text-align: center;
             color: black;
             width: 100%;
-        }
-        h2 {
-            text-align: left;
-            color: #333;
         }
         .form-container {
             background-color: white;
@@ -86,6 +82,7 @@
             border-radius: 8px;
             cursor: pointer;
             font-family: monospace;
+            margin: 0 5px;
         }
         .controls button:hover {
             background-color: #e0e0e0;
@@ -106,6 +103,7 @@
             text-align: left;
             transition: transform 0.2s;
             display: block;
+            position: relative;
         }
         .card.hidden {
             display: none;
@@ -124,6 +122,13 @@
         }
         .card a:hover, .card button:hover {
             color: #555;
+        }
+        .category-icon {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            font-size: 16px;
+            color: black;
         }
         .preview {
             font-size: 14px;
@@ -172,16 +177,13 @@
             display: inline-block;
             font-family: monospace;
         }
-        .news-section, .twitter-section {
-            margin: 20px 0;
-        }
     </style>
 </head>
 <body>
-    <h1>News Page</h1>
+    <h1>Bookmarks</h1>
     
     <div class="form-container">
-        <h3>Add/Edit Card</h3>
+        <h3>Add/Edit Bookmark</h3>
         <label for="cardType">Type:</label>
         <select id="cardType">
             <option value="news">News</option>
@@ -195,11 +197,11 @@
         <textarea id="description" placeholder="Enter fallback description"></textarea>
         <label for="source">Source:</label>
         <input type="text" id="source" placeholder="Enter source" />
-        <label for="tags">Tags (comma-separated):</label>
+        <label for="tags">Additional Tags (comma-separated):</label>
         <input type="text" id="tags" placeholder="e.g., tech,update" />
         <label for="date">Date (YYYY-MM-DD):</label>
         <input type="text" id="date" placeholder="e.g., 2025-06-09" />
-        <button onclick="saveCard()">Save Card</button>
+        <button onclick="saveCard()">Save Bookmark</button>
         <button onclick="clearForm()">Clear Form</button>
         <input type="hidden" id="editIndex" value="-1" />
         <input type="hidden" id="editType" value="" />
@@ -212,17 +214,10 @@
                 <option value="all">All Tags</option>
             </select>
             <button onclick="copyToClipboard()">Copy JSON to Clipboard</button>
+            <button onclick="reloadFromGitHub()">Reload from GitHub</button>
         </div>
         
-        <div class="news-section">
-            <h2>News</h2>
-            <div id="news-container" class="container"></div>
-        </div>
-        
-        <div class="twitter-section">
-            <h2>Twitter Posts</h2>
-            <div id="twitter-container" class="container"></div>
-        </div>
+        <div class="container" id="all-cards-container"></div>
     </div>
 
     <script>
@@ -256,7 +251,7 @@
 
                 // Validate image URL
                 if (ogData.image && !ogData.image.match(/^https?:\/\//)) {
-                    ogData.image = ''; // Invalidate relative or malformed URLs
+                    ogData.image = '';
                 }
 
                 return ogData;
@@ -275,27 +270,33 @@
                 allTwitter = JSON.parse(storedTwitter);
                 populateTagsAndRender();
             } else {
-                fetch(jsonUrl)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Failed to fetch JSON data');
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        allNews = data.news || [];
-                        allTwitter = data.twitter || [];
-                        allNews = allNews.map(item => ({ ...item, date: item.date || 'No date' }));
-                        allTwitter = allTwitter.map(item => ({ ...item, date: item.date || 'No date' }));
-                        saveToLocalStorage();
-                        populateTagsAndRender();
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        document.getElementById('news-container').innerHTML = '<p>Error loading news data</p>';
-                        document.getElementById('twitter-container').innerHTML = '<p>Error loading Twitter data</p>';
-                    });
+                reloadFromGitHub();
             }
+        }
+
+        // Reload data from GitHub
+        function reloadFromGitHub() {
+            fetch(jsonUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch JSON data');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    allNews = data.news || [];
+                    allTwitter = data.twitter || [];
+                    allNews = allNews.map(item => ({ ...item, date: item.date || 'No date' }));
+                    allTwitter = allTwitter.map(item => ({ ...item, date: item.date || 'No date' }));
+                    saveToLocalStorage();
+                    populateTagsAndRender();
+                    alert('Data reloaded from GitHub successfully!');
+                })
+                .catch(error => {
+                    console.error('Error fetching GitHub data:', error);
+                    alert('Failed to reload data from GitHub.');
+                    document.getElementById('all-cards-container').innerHTML = '<p>Error loading data</p>';
+                });
         }
 
         // Save data to local storage
@@ -325,63 +326,63 @@
             await renderCards();
         }
 
-        // Render cards based on search and tag filter
+        // Render cards based on search and tag filter, sorted by date
         async function renderCards() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
             const selectedTag = document.getElementById('tagFilter').value;
-            const newsContainer = document.getElementById('news-container');
-            const twitterContainer = document.getElementById('twitter-container');
-            newsContainer.innerHTML = '';
-            twitterContainer.innerHTML = '';
+            const container = document.getElementById('all-cards-container');
+            container.innerHTML = '';
 
-            // Render news cards
-            for (let index = 0; index < allNews.length; index++) {
-                const item = allNews[index];
-                const matchesSearch = item.title.toLowerCase().includes(searchTerm);
+            // Combine news and Twitter with type indicator
+            const combined = [
+                ...allNews.map((item, index) => ({
+                    ...item,
+                    type: 'news',
+                    searchField: item.title.toLowerCase(),
+                    originalIndex: index
+                })),
+                ...allTwitter.map((item, index) => ({
+                    ...item,
+                    type: 'twitter',
+                    searchField: (item.title || item.username).toLowerCase(),
+                    originalIndex: index
+                }))
+            ];
+
+            // Sort by date (newest first)
+            combined.sort((a, b) => {
+                if (a.date === 'No date') return 1;
+                if (b.date === 'No date') return -1;
+                return new Date(b.date) - new Date(a.date);
+            });
+
+            // Render all cards
+            for (const item of combined) {
+                const matchesSearch = item.searchField.includes(searchTerm);
                 const matchesTag = selectedTag === 'all' || (item.tags && item.tags.includes(selectedTag));
                 if (matchesSearch && matchesTag) {
                     const ogData = await fetchOpenGraphData(item.url);
                     const card = document.createElement('div');
                     card.className = 'card';
                     card.innerHTML = `
-                        <h3>${item.title}</h3>
+                        <span class="category-icon">${item.type === 'news' ? '📰' : '𝕏'}</span>
+                        <h3>${item.type === 'news' ? item.title : `@${item.username}`}</h3>
                         <div class="preview">
                             ${ogData.image ? `<img src="${ogData.image}" alt="Preview Image" onerror="this.classList.add('hidden')" />` : ''}
                             <p>${ogData.description || item.description || 'No preview available'}</p>
                         </div>
                         <div class="tags">${item.tags ? item.tags.map(tag => `<span class="tag">${tag}</span>`).join('') : ''}</div>
                         <div class="date">${item.date || 'No date'}</div>
-                        <a href="${item.url}" target="_blank" rel="noopener noreferrer">Read More</a>
-                        <div class="source">Source: <a href="${item.url}" target="_blank" rel="noopener noreferrer">${item.source}</a></div>
-                        <button onclick="editCard('news', ${index})">Edit</button>
+                        <a href="${item.url}" target="_blank" rel="noopener noreferrer">${item.type === 'news' ? 'Read More' : 'View Post'}</a>
+                        <div class="source">Source: <a href="${item.type === 'news' ? item.url : 'https://x.com'}" target="_blank" rel="noopener noreferrer">${item.source}</a></div>
+                        <button onclick="editCard('${item.type}', ${item.originalIndex})">Edit</button>
                     `;
-                    newsContainer.appendChild(card);
+                    container.appendChild(card);
                 }
             }
 
-            // Render Twitter cards
-            for (let index = 0; index < allTwitter.length; index++) {
-                const item = allTwitter[index];
-                const matchesSearch = item.title ? item.title.toLowerCase().includes(searchTerm) : item.username.toLowerCase().includes(searchTerm);
-                const matchesTag = selectedTag === 'all' || (item.tags && item.tags.includes(selectedTag));
-                if (matchesSearch && matchesTag) {
-                    const ogData = await fetchOpenGraphData(item.url);
-                    const card = document.createElement('div');
-                    card.className = 'card';
-                    card.innerHTML = `
-                        <h3>@${item.username}</h3>
-                        <div class="preview">
-                            ${ogData.image ? `<img src="${ogData.image}" alt="Preview Image" onerror="this.classList.add('hidden')" />` : ''}
-                            <p>${ogData.description || item.description || 'No preview available'}</p>
-                        </div>
-                        <div class="tags">${item.tags ? item.tags.map(tag => `<span class="tag">${tag}</span>`).join('') : ''}</div>
-                        <div class="date">${item.date || 'No date'}</div>
-                        <a href="${item.url}" target="_blank" rel="noopener noreferrer">View Post</a>
-                        <div class="source">Source: <a href="https://x.com" target="_blank" rel="noopener noreferrer">${item.source}</a></div>
-                        <button onclick="editCard('twitter', ${index})">Edit</button>
-                    `;
-                    twitterContainer.appendChild(card);
-                }
+            if (container.innerHTML === '') {
+                container.innerHTML = '<p>No bookmarks match the current filters.</p>';
             }
         }
 
@@ -393,7 +394,7 @@
             document.getElementById('url').value = item.url;
             document.getElementById('description').value = item.description;
             document.getElementById('source').value = item.source;
-            document.getElementById('tags').value = item.tags ? item.tags.join(', ') : '';
+            document.getElementById('tags').value = item.tags ? item.tags.filter(tag => tag !== 'news' && tag !== 'twitter').join(', ') : '';
             document.getElementById('date').value = item.date && item.date !== 'No date' ? item.date : '';
             document.getElementById('editIndex').value = index;
             document.getElementById('editType').value = type;
@@ -406,14 +407,19 @@
             const url = document.getElementById('url').value.trim();
             const description = document.getElementById('description').value.trim();
             const source = document.getElementById('source').value.trim();
-            const tags = document.getElementById('tags').value.trim().split(',').map(t => t.trim()).filter(t => t);
+            let tags = document.getElementById('tags').value.trim().split(',').map(t => t.trim()).filter(t => t);
             const date = document.getElementById('date').value.trim() || 'No date';
             const editIndex = document.getElementById('editIndex').value;
             const editType = document.getElementById('editType').value;
 
             if (!title || !url || !description || !source) {
-                alert('Please fill in title, URL, description, and source');
+                alert('Please fill in title/username, URL, description, and source');
                 return;
+            }
+
+            // Add card type as a tag
+            if (!tags.includes(type)) {
+                tags.push(type);
             }
 
             const newItem = type === 'news' 

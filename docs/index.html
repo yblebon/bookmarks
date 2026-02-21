@@ -2,249 +2,166 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bookmark Collection – Searchable & Sortable</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background:#f9f9f9;
-            margin:0;
-            display:flex;
-            justify-content:center;
-            align-items:flex-start;
-            padding:3rem 1rem;
+        :root { --primary: #2980b9; --bg: #f9f9f9; --card-bg: #fff; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 3rem 1rem; display: flex; justify-content: center; }
+        .wrapper { max-width: 800px; width: 100%; }
+        h1 { color: #2c3e50; text-align: center; }
+        
+        #controls { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+        #search { flex: 1; padding: 0.7rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
+        #sortBtn { padding: 0.7rem 1.2rem; background: var(--primary); color: #fff; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap; }
+
+        #bookmarks { display: flex; flex-direction: column; gap: 1.5rem; }
+        .card { 
+            background: var(--card-bg); border: 1px solid #ddd; border-radius: 8px; 
+            padding: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            contain: content; /* Performance optimization for rendering */
         }
-        .wrapper {
-            max-width:800px;
-            width:100%;
+        .card a.title { text-decoration: none; color: var(--primary); font-weight: bold; font-size: 1.2rem; display: block; margin-bottom: 0.5rem; }
+        
+        /* Fix Layout Shift: Reserve space for images/iframes */
+        .preview-container { 
+            margin: 0.8rem 0; 
+            background: #eee; 
+            border-radius: 4px; 
+            overflow: hidden;
+            aspect-ratio: 16 / 9; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        h1 {
-            color:#2c3e50;
-            text-align:center;
-            margin-bottom:0.5rem;
+        .preview-container img, .preview-container iframe { 
+            width: 100%; height: 100%; object-fit: cover; border: none; 
         }
-        #controls {
-            display:flex;
-            gap:0.5rem;
-            margin-bottom:1.5rem;
-        }
-        #search, #sortBtn {
-            padding:0.7rem;
-            font-size:1rem;
-            border:1px solid #ccc;
-            border-radius:4px;
-            box-sizing:border-box;
-        }
-        #search {flex:1;}
-        #sortBtn {background:#2980b9; color:#fff; cursor:pointer;}
-        .card {
-            background:#fff;
-            border:1px solid #ddd;
-            border-radius:5px;
-            padding:1rem;
-            margin-bottom:1.5rem;
-            box-shadow:0 2px 4px rgba(0,0,0,0.05);
-        }
-        .card a.title {
-            text-decoration:none;
-            color:#2980b9;
-            font-weight:bold;
-            font-size:1.2rem;
-        }
-        .preview {
-            margin:0.8rem 0;
-            max-width:100%;
-            overflow:hidden;
-        }
-        .preview img,
-        .preview iframe {
-            max-width:100%;
-            border:none;
-        }
-        .tags {margin-top:.5rem;}
-        .tag {
-            display:inline-block;
-            background:#e0e0e0;
-            color:#333;
-            border-radius:3px;
-            padding:2px 6px;
-            margin-right:4px;
-            font-size:.85rem;
-        }
-        .date {
-            color:#777;
-            font-size:.9rem;
-            margin-top:.5rem;
-        }
-        .no-results {
-            color:#c0392b;
-            font-weight:bold;
-            text-align:center;
-            margin-top:2rem;
-        }
+
+        .tag { display: inline-block; background: #e0e0e0; border-radius: 3px; padding: 2px 8px; margin: 4px 4px 0 0; font-size: .85rem; }
+        .date { color: #777; font-size: .9rem; margin-top: 0.8rem; }
+        .no-results { color: #c0392b; text-align: center; font-weight: bold; padding: 2rem; }
     </style>
 </head>
 <body>
     <div class="wrapper">
         <h1>Bookmark Collection</h1>
         <div id="controls">
-            <input type="text" id="search" placeholder="Search by title or tag…">
+            <input type="text" id="search" placeholder="Search title or tags..." autocomplete="off">
             <button id="sortBtn">Sort by Newest</button>
         </div>
-        <div id="bookmarks"></div>
+        <div id="bookmarks">Loading bookmarks...</div>
     </div>
 
     <script>
-        const dataUrl = 'https://raw.githubusercontent.com/yblebon/datasources/main/bookmarks.json';
-        let allBookmarks = [];          // raw objects
-        let displayedBookmarks = [];    // objects with .element
-        let sortDesc = true;            // newest first
+        const DATA_URL = 'https://static-conf.vercel.app/go/bookmarks';
+        let allBookmarks = [];
+        let sortDesc = true;
+        let searchTimeout;
 
-        // ---------- Helpers ----------
-        function createTag(text) {
-            const span = document.createElement('span');
-            span.className = 'tag';
-            span.textContent = text;
-            return span;
-        }
-        function getYouTubeEmbed(url) {
-            const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([^\s&]+)/);
-            return m ? `https://www.youtube.com/embed/${m[1]}` : null;
-        }
-        async function fetchOpenGraphImage(pageUrl) {
-            try {
-                const r = await fetch(`https://r.jina.ai/http://${pageUrl}`);
-                const d = await r.json();
-                return d?.metadata?.og_image || null;
-            } catch { return null; }
-        }
-
-        // ---------- Card rendering (cached) ----------
-        const cardCache = new Map(); // url → element
-        async function renderCard(item) {
-            if (cardCache.has(item.url)) return cardCache.get(item.url);
-
+        // ---------- UI Component ----------
+        function createBookmarkElement(item) {
             const card = document.createElement('div');
             card.className = 'card';
+            card.dataset.id = item.url;
 
-            const link = document.createElement('a');
-            link.href = item.url;
-            link.target = '_blank';
-            link.className = 'title';
-            link.textContent = item.title;
-            card.appendChild(link);
+            const ytId = getYouTubeId(item.url);
+            
+            card.innerHTML = `
+                <a href="${item.url}" target="_blank" rel="noopener" class="title">${item.title}</a>
+                <div class="preview-container" id="prev-${btoa(item.url).substring(0,10)}">
+                    ${ytId 
+                        ? `<iframe src="https://www.youtube.com/embed/${ytId}" loading="lazy" allowfullscreen></iframe>`
+                        : `<p style="padding:1rem; color:#666">${item.description || 'Loading preview...'}</p>`
+                    }
+                </div>
+                <div class="tags">${item.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
+                <div class="date">Published: ${item.date}</div>
+            `;
 
-            const preview = document.createElement('div');
-            preview.className = 'preview';
-
-            const yt = getYouTubeEmbed(item.url);
-            if (yt) {
-                const iframe = document.createElement('iframe');
-                iframe.src = yt;
-                iframe.width = '560';
-                iframe.height = '315';
-                iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
-                iframe.allowFullscreen = true;
-                preview.appendChild(iframe);
-            } else {
-                const imgUrl = await fetchOpenGraphImage(item.url);
-                if (imgUrl) {
-                    const img = document.createElement('img');
-                    img.src = imgUrl;
-                    img.alt = 'Preview image';
-                    preview.appendChild(img);
-                } else {
-                    const p = document.createElement('p');
-                    p.textContent = item.description;
-                    preview.appendChild(p);
-                }
+            // If not YouTube, fetch image in the background without blocking
+            if (!ytId) {
+                lazyLoadImage(item.url, `prev-${btoa(item.url).substring(0,10)}`);
             }
-            card.appendChild(preview);
 
-            const tagsDiv = document.createElement('div');
-            tagsDiv.className = 'tags';
-            item.tags.forEach(t => tagsDiv.appendChild(createTag(t)));
-            card.appendChild(tagsDiv);
-
-            const dateDiv = document.createElement('div');
-            dateDiv.className = 'date';
-            dateDiv.textContent = `Published: ${item.date}`;
-            card.appendChild(dateDiv);
-
-            cardCache.set(item.url, card);
             return card;
         }
 
-        // ---------- Display ----------
-        function display(list) {
+        // ---------- Logic ----------
+        function getYouTubeId(url) {
+            const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([^\s&]+)/);
+            return m ? m[1] : null;
+        }
+
+        async function lazyLoadImage(pageUrl, containerId) {
+            try {
+                const r = await fetch(`https://r.jina.ai/http://${pageUrl}`);
+                const d = await r.json();
+                if (d?.metadata?.og_image) {
+                    const container = document.getElementById(containerId);
+                    if (container) {
+                        container.innerHTML = `<img src="${d.metadata.og_image}" loading="lazy" alt="Preview">`;
+                    }
+                }
+            } catch (e) { /* Fallback to description already in HTML */ }
+        }
+
+        function renderList(list) {
             const container = document.getElementById('bookmarks');
-            container.innerHTML = '';
             if (list.length === 0) {
-                const msg = document.createElement('div');
-                msg.className = 'no-results';
-                msg.textContent = 'No bookmarks match your search.';
-                container.appendChild(msg);
+                container.innerHTML = '<div class="no-results">No bookmarks found.</div>';
                 return;
             }
+            
             const fragment = document.createDocumentFragment();
-            list.forEach(b => fragment.appendChild(b.element));
+            list.forEach(item => {
+                // Reuse existing elements if possible (basic caching)
+                if (!item.element) item.element = createBookmarkElement(item);
+                fragment.appendChild(item.element);
+            });
+            
+            container.innerHTML = '';
             container.appendChild(fragment);
         }
 
-        // ---------- Search ----------
-        function matches(item, q) {
-            const lower = q.toLowerCase();
-            return item.title.toLowerCase().includes(lower) ||
-                   item.tags.some(t => t.toLowerCase().includes(lower));
-        }
+        function applyFilterAndSort() {
+            const q = document.getElementById('search').value.toLowerCase().trim();
+            let filtered = allBookmarks.filter(item => 
+                item.title.toLowerCase().includes(q) || 
+                item.tags.some(t => t.toLowerCase().includes(q))
+            );
 
-        // ---------- Sorting ----------
-        function sortAndRefresh() {
-            displayedBookmarks.sort((a, b) => {
-                const da = new Date(a.date);
-                const db = new Date(b.date);
-                return sortDesc ? db - da : da - db;
+            filtered.sort((a, b) => {
+                const diff = new Date(a.date) - new Date(b.date);
+                return sortDesc ? -diff : diff;
             });
-            display(displayedBookmarks);
+
+            renderList(filtered);
         }
 
-        // ---------- Init ----------
+        // ---------- Initialization ----------
         async function init() {
-            const raw = await fetch(dataUrl).then(r => r.ok ? r.json() : Promise.reject());
-            // Build objects with rendered elements (async, but sequentially to avoid flooding)
-            for (const item of raw) {
-                const el = await renderCard(item);
-                allBookmarks.push(item);
-                displayedBookmarks.push({ ...item, element: el });
+            try {
+                const response = await fetch(DATA_URL);
+                allBookmarks = await response.json();
+                applyFilterAndSort(); // First render
+            } catch (err) {
+                document.getElementById('bookmarks').textContent = 'Error loading bookmarks.';
             }
-            sortAndRefresh();
         }
-        init().catch(err => {
-            console.error(err);
-            document.getElementById('bookmarks').textContent = 'Failed to load bookmarks.';
+
+        // ---------- Event Listeners ----------
+        document.getElementById('search').addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(applyFilterAndSort, 150); // Debounce search
         });
 
-        // ---------- Event listeners ----------
-        document.getElementById('search').addEventListener('input', e => {
-            const q = e.target.value.trim();
-            if (!q) {
-                displayedBookmarks = allBookmarks.map(i => ({
-                    ...i,
-                    element: cardCache.get(i.url)
-                }));
-                sortAndRefresh();
-                return;
-            }
-            displayedBookmarks = allBookmarks
-                .filter(i => matches(i, q))
-                .map(i => ({ ...i, element: cardCache.get(i.url) }));
-            sortAndRefresh();
-        });
-
-        document.getElementById('sortBtn').addEventListener('click', () => {
+        document.getElementById('sortBtn').addEventListener('click', (e) => {
             sortDesc = !sortDesc;
-            document.getElementById('sortBtn').textContent = sortDesc ? 'Sort by Newest' : 'Sort by Oldest';
-            sortAndRefresh();
+            e.target.textContent = sortDesc ? 'Sort by Newest' : 'Sort by Oldest';
+            applyFilterAndSort();
         });
+
+        init();
     </script>
 </body>
 </html>

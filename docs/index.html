@@ -3,90 +3,230 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bookmark Collection – Searchable & Sortable</title>
+    <title>Modern Bookmark Collection</title>
     <style>
-        :root { --primary: #2980b9; --bg: #f9f9f9; --card-bg: #fff; }
-        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 3rem 1rem; display: flex; justify-content: center; }
-        .wrapper { max-width: 800px; width: 100%; }
-        h1 { color: #2c3e50; text-align: center; }
-        
-        #controls { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
-        #search { flex: 1; padding: 0.7rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
-        #sortBtn { padding: 0.7rem 1.2rem; background: var(--primary); color: #fff; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap; }
-
-        #bookmarks { display: flex; flex-direction: column; gap: 1.5rem; }
-        .card { 
-            background: var(--card-bg); border: 1px solid #ddd; border-radius: 8px; 
-            padding: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            contain: content; /* Performance optimization for rendering */
+        :root {
+            --primary: #2563eb;
+            --bg-page: #f8fafc;
+            --bg-card: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --radius: 12px;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
         }
-        .card a.title { text-decoration: none; color: var(--primary); font-weight: bold; font-size: 1.2rem; display: block; margin-bottom: 0.5rem; }
-        
-        /* Fix Layout Shift: Reserve space for images/iframes */
-        .preview-container { 
-            margin: 0.8rem 0; 
-            background: #eee; 
-            border-radius: 4px; 
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-page);
+            margin: 0;
+            padding: 2rem 1rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        .wrapper {
+            max-width: 700px;
+            width: 100%;
+        }
+
+        h1 {
+            color: var(--text-main);
+            text-align: center;
+            margin-bottom: 2rem;
+            font-weight: 800;
+        }
+
+        /* Controls / Search */
+        #controls {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 2rem;
+        }
+
+        #search {
+            flex: 1;
+            padding: 0.8rem 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+            outline: none;
+        }
+
+        #search:focus { border-color: var(--primary); ring: 2px solid var(--primary); }
+
+        #sortBtn {
+            padding: 0.8rem 1.2rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: opacity 0.2s;
+        }
+
+        #sortBtn:active { opacity: 0.8; }
+
+        /* Card Styling */
+        #bookmarks {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid #e2e8f0;
             overflow: hidden;
-            aspect-ratio: 16 / 9; 
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.2s ease;
+            contain: content;
+        }
+
+        .card-content { padding: 1.5rem; }
+
+        .card-title {
+            color: var(--primary);
+            font-size: 1.25rem;
+            font-weight: 700;
+            text-decoration: none;
+            display: block;
+            margin-bottom: 1rem;
+            line-height: 1.4;
+        }
+
+        /* Preview Area */
+        .preview-container {
+            background-color: #f1f5f9;
+            aspect-ratio: 16 / 9;
+            border-radius: 8px;
+            margin-bottom: 1.25rem;
             display: flex;
             align-items: center;
             justify-content: center;
-        }
-        .preview-container img, .preview-container iframe { 
-            width: 100%; height: 100%; object-fit: cover; border: none; 
+            overflow: hidden;
+            border: 1px solid #f1f5f9;
         }
 
-        .tag { display: inline-block; background: #e0e0e0; border-radius: 3px; padding: 2px 8px; margin: 4px 4px 0 0; font-size: .85rem; }
-        .date { color: #777; font-size: .9rem; margin-top: 0.8rem; }
-        .no-results { color: #c0392b; text-align: center; font-weight: bold; padding: 2rem; }
+        .preview-container img, 
+        .preview-container iframe {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border: none;
+        }
+
+        .description-fallback {
+            padding: 1.5rem;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        /* Tags and Footer */
+        .tags-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .tag {
+            background: #f1f5f9;
+            color: #475569;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            text-transform: lowercase;
+        }
+
+        .card-footer {
+            border-top: 1px solid #f1f5f9;
+            padding: 1rem 1.5rem;
+            background: #fafafa;
+        }
+
+        .date {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        @media (max-width: 480px) {
+            body { padding: 1rem 0.5rem; }
+            .card-title { font-size: 1.1rem; }
+        }
     </style>
 </head>
 <body>
+
     <div class="wrapper">
-        <h1>Bookmark Collection</h1>
+        <h1>Bookmarks</h1>
+        
         <div id="controls">
             <input type="text" id="search" placeholder="Search title or tags..." autocomplete="off">
-            <button id="sortBtn">Sort by Newest</button>
+            <button id="sortBtn">Newest First</button>
         </div>
-        <div id="bookmarks">Loading bookmarks...</div>
+
+        <div id="bookmarks">
+            <div class="no-results">Loading collection...</div>
+        </div>
     </div>
 
     <script>
         const DATA_URL = 'https://static-conf.vercel.app/go/bookmarks';
         let allBookmarks = [];
         let sortDesc = true;
-        let searchTimeout;
+        let searchDebounce;
 
         // ---------- UI Component ----------
         function createBookmarkElement(item) {
-            const card = document.createElement('div');
+            const card = document.createElement('article');
             card.className = 'card';
-            card.dataset.id = item.url;
-
-            const ytId = getYouTubeId(item.url);
             
+            // Generate a safe unique ID for the preview container
+            const safeId = `prev-${btoa(item.url).substring(0, 12).replace(/[^a-z0-9]/gi, '')}`;
+            const ytId = getYouTubeId(item.url);
+
             card.innerHTML = `
-                <a href="${item.url}" target="_blank" rel="noopener" class="title">${item.title}</a>
-                <div class="preview-container" id="prev-${btoa(item.url).substring(0,10)}">
-                    ${ytId 
-                        ? `<iframe src="https://www.youtube.com/embed/${ytId}" loading="lazy" allowfullscreen></iframe>`
-                        : `<p style="padding:1rem; color:#666">${item.description || 'Loading preview...'}</p>`
-                    }
+                <div class="card-content">
+                    <a href="${item.url}" target="_blank" rel="noopener" class="card-title">${item.title}</a>
+                    <div class="preview-container" id="${safeId}">
+                        ${ytId 
+                            ? `<iframe src="https://www.youtube.com/embed/${ytId}" loading="lazy" allowfullscreen></iframe>`
+                            : `<div class="description-fallback">${item.description || 'Fetching preview...'}</div>`
+                        }
+                    </div>
+                    <div class="tags-container">
+                        ${item.tags.map(t => `<span class="tag">${t}</span>`).join('')}
+                    </div>
                 </div>
-                <div class="tags">${item.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
-                <div class="date">Published: ${item.date}</div>
+                <footer class="card-footer">
+                    <span class="date">Published: ${item.date}</span>
+                </footer>
             `;
 
-            // If not YouTube, fetch image in the background without blocking
+            // Parallel load image if not a YouTube link
             if (!ytId) {
-                lazyLoadImage(item.url, `prev-${btoa(item.url).substring(0,10)}`);
+                lazyLoadImage(item.url, safeId);
             }
 
             return card;
         }
 
-        // ---------- Logic ----------
+        // ---------- Logic & Performance ----------
         function getYouTubeId(url) {
             const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([^\s&]+)/);
             return m ? m[1] : null;
@@ -102,19 +242,19 @@
                         container.innerHTML = `<img src="${d.metadata.og_image}" loading="lazy" alt="Preview">`;
                     }
                 }
-            } catch (e) { /* Fallback to description already in HTML */ }
+            } catch (e) { /* Keeps description fallback on error */ }
         }
 
         function renderList(list) {
             const container = document.getElementById('bookmarks');
             if (list.length === 0) {
-                container.innerHTML = '<div class="no-results">No bookmarks found.</div>';
+                container.innerHTML = '<div class="no-results">No bookmarks match your search.</div>';
                 return;
             }
             
             const fragment = document.createDocumentFragment();
             list.forEach(item => {
-                // Reuse existing elements if possible (basic caching)
+                // Persistent element caching
                 if (!item.element) item.element = createBookmarkElement(item);
                 fragment.appendChild(item.element);
             });
@@ -124,40 +264,43 @@
         }
 
         function applyFilterAndSort() {
-            const q = document.getElementById('search').value.toLowerCase().trim();
-            let filtered = allBookmarks.filter(item => 
-                item.title.toLowerCase().includes(q) || 
-                item.tags.some(t => t.toLowerCase().includes(q))
+            const query = document.getElementById('search').value.toLowerCase().trim();
+            
+            const filtered = allBookmarks.filter(item => 
+                item.title.toLowerCase().includes(query) || 
+                item.tags.some(t => t.toLowerCase().includes(query))
             );
 
             filtered.sort((a, b) => {
-                const diff = new Date(a.date) - new Date(b.date);
-                return sortDesc ? -diff : diff;
+                const dateA = new Date(a.date);
+                const dateB = new Date(b.date);
+                return sortDesc ? dateB - dateA : dateA - dateB;
             });
 
             renderList(filtered);
         }
 
-        // ---------- Initialization ----------
+        // ---------- Init ----------
         async function init() {
             try {
                 const response = await fetch(DATA_URL);
+                if (!response.ok) throw new Error();
                 allBookmarks = await response.json();
-                applyFilterAndSort(); // First render
+                applyFilterAndSort();
             } catch (err) {
-                document.getElementById('bookmarks').textContent = 'Error loading bookmarks.';
+                document.getElementById('bookmarks').innerHTML = '<div class="no-results">Failed to load bookmarks. Please try again later.</div>';
             }
         }
 
         // ---------- Event Listeners ----------
         document.getElementById('search').addEventListener('input', () => {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(applyFilterAndSort, 150); // Debounce search
+            clearTimeout(searchDebounce);
+            searchDebounce = setTimeout(applyFilterAndSort, 200);
         });
 
         document.getElementById('sortBtn').addEventListener('click', (e) => {
             sortDesc = !sortDesc;
-            e.target.textContent = sortDesc ? 'Sort by Newest' : 'Sort by Oldest';
+            e.target.textContent = sortDesc ? 'Newest First' : 'Oldest First';
             applyFilterAndSort();
         });
 
